@@ -2,15 +2,18 @@ package com.umc.veiculos.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.umc.veiculos.model.Veiculo;
 import com.umc.veiculos.service.VeiculoService;
+
+import jakarta.validation.Valid;
 
 @Controller
 @RequestMapping("/veiculos")
@@ -40,8 +43,18 @@ public class VeiculoController {
     }
 
     @PostMapping("/salvar")
-    public String salvar(@ModelAttribute Veiculo veiculo) {
+    public String salvar(@Valid Veiculo veiculo, BindingResult result,
+                         RedirectAttributes redirect) {
+        // Regra de negocio: placa unica (so confere se o formato da placa esta valido)
+        if (!result.hasFieldErrors("placa") && service.placaEmUso(veiculo)) {
+            result.rejectValue("placa", "placa.duplicada",
+                    "Já existe um veículo cadastrado com esta placa");
+        }
+        if (result.hasErrors()) {
+            return "veiculos/form"; // volta ao formulario exibindo os erros
+        }
         service.salvar(veiculo);
+        redirect.addFlashAttribute("mensagem", "Veículo salvo com sucesso!");
         return "redirect:/veiculos"; // Post/Redirect/Get
     }
 
@@ -54,8 +67,9 @@ public class VeiculoController {
     }
 
     @PostMapping("/excluir/{id}")
-    public String excluir(@PathVariable Long id) {
+    public String excluir(@PathVariable Long id, RedirectAttributes redirect) {
         service.excluir(id);
+        redirect.addFlashAttribute("mensagem", "Veículo excluído com sucesso!");
         return "redirect:/veiculos";
     }
 }
